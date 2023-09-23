@@ -18,3 +18,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "YoursoonWeather"
 include ':app'
+include ':library'

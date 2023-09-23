@@ -2,38 +2,112 @@ package com.yoursoonweather.android;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
-import android.os.Bundle;
+import android.util.Log;
 
 import com.baidu.location.BDLocation;
 import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
+import com.yoursoonweather.android.bean.NowResponse;
+import com.yoursoonweather.android.bean.SearchCityResponse;
 import com.yoursoonweather.android.databinding.ActivityMainBinding;
 import com.yoursoonweather.android.location.LocationCallback;
 import com.yoursoonweather.android.location.MyLocationListener;
+import com.yoursoonweather.android.viewmodel.MainViewModel;
+import com.yoursoonweather.library.base.NetworkActivity;
 
-public class MainActivity extends AppCompatActivity implements LocationCallback {
+import java.util.List;
 
-    private ActivityMainBinding binding;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        registerIntent();
+public class MainActivity extends NetworkActivity<ActivityMainBinding> implements LocationCallback {
 
-        super.onCreate(savedInstanceState);
-        binding = ActivityMainBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
-
-        initLocation();
-        requestPermission();
-    }
-
+    //权限数组
+    private final String[] permissions = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.WRITE_EXTERNAL_STORAGE};
+    //请求权限意图
+    private ActivityResultLauncher<String[]> requestPermissionIntent;
 
     public LocationClient mLocationClient = null;
     private final MyLocationListener myListener = new MyLocationListener();
+
+    private MainViewModel viewModel;
+
+    /**
+     * 注册意图
+     */
+    @Override
+    public void onRegister() {
+        //请求权限意图
+        requestPermissionIntent = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
+            boolean fineLocation = Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_FINE_LOCATION));
+            boolean writeStorage = Boolean.TRUE.equals(result.get(Manifest.permission.WRITE_EXTERNAL_STORAGE));
+            if (fineLocation && writeStorage) {
+                //权限已经获取到，开始定位
+                startLocation();
+            }
+        });
+    }
+
+    /**
+     * 初始化
+     */
+    @Override
+    protected void onCreate() {
+        setFullScreenImmersion();
+        initLocation();
+        requestPermission();
+        viewModel = new ViewModelProvider(this).get(MainViewModel.class);
+    }
+
+    /**
+     * 数据观察
+     */
+    @Override
+    protected void onObserveData() {
+        if (viewModel != null) {
+            //城市数据返回
+            viewModel.searchCityResponseMutableLiveData.observe(this, searchCityResponse -> {
+                List<SearchCityResponse.LocationBean> location = searchCityResponse.getLocation();
+                if (location != null && location.size() > 0) {
+                    String id = location.get(0).getId();
+                    //获取到城市的ID
+                    if (id != null) {
+                        //通过城市ID查询城市实时天气
+                        viewModel.nowWeather(id);
+                    }
+                }
+            });
+            //实况天气返回
+            viewModel.nowResponseMutableLiveData.observe(this, nowResponse -> {
+                NowResponse.NowBean now = nowResponse.getNow();
+                if (now != null) {
+                    binding.tvInfo.setText(now.getText());
+                    binding.tvTemp.setText(now.getTemp());
+                    binding.tvUpdateTime.setText("最近更新时间：" + nowResponse.getUpdateTime());
+                }
+            });
+            //错误信息返回
+            viewModel.failed.observe(this, this::showLongMsg);
+        }
+    }
+
+    /**
+     * 请求权限
+     */
+    private void requestPermission() {
+        //因为项目的最低版本API是23，所以肯定需要动态请求危险权限，只需要判断权限是否拥有即可
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                || checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            //开始权限请求
+            requestPermissionIntent.launch(permissions);
+            return;
+        }
+        //开始定位
+        startLocation();
+    }
+
 
     /**
      * 初始化定位
@@ -58,58 +132,32 @@ public class MainActivity extends AppCompatActivity implements LocationCallback 
         }
     }
 
-    @Override
-    public void onReceiveLocation(BDLocation bdLocation) {
-        double latitude = bdLocation.getLatitude();    //获取纬度信息
-        double longitude = bdLocation.getLongitude();    //获取经度信息
-        float radius = bdLocation.getRadius();    //获取定位精度，默认值为0.0f
-        String coorType = bdLocation.getCoorType();
-        //获取经纬度坐标类型，以LocationClientOption中设置过的坐标类型为准
-        int errorCode = bdLocation.getLocType();//161  表示网络定位结果
-        //获取定位类型、定位错误返回码，具体信息可参照类参考中BDLocation类中的说明
-        String addr = bdLocation.getAddrStr();    //获取详细地址信息
-        String country = bdLocation.getCountry();    //获取国家
-        String province = bdLocation.getProvince();    //获取省份
-        String city = bdLocation.getCity();    //获取城市
-        String district = bdLocation.getDistrict();    //获取区县
-        String street = bdLocation.getStreet();    //获取街道信息
-        String locationDescribe = bdLocation.getLocationDescribe();    //获取位置描述信息
-        binding.tvAddressDetail.setText(addr);//设置文本显示
-    }
-
+    /**
+     * 开始定位
+     */
     private void startLocation() {
         if (mLocationClient != null) {
             mLocationClient.start();
         }
     }
 
-    //权限数组
-    private final String[] permissions = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.WRITE_EXTERNAL_STORAGE};
-    //请求权限意图
-    private ActivityResultLauncher<String[]> requestPermissionIntent;
-
-    private void registerIntent() {
-        //请求权限意图
-        requestPermissionIntent = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
-            boolean fineLocation = Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_FINE_LOCATION));
-            boolean writeStorage = Boolean.TRUE.equals(result.get(Manifest.permission.WRITE_EXTERNAL_STORAGE));
-            if (fineLocation && writeStorage) {
-                //权限已经获取到，开始定位
-                startLocation();
-            }
-        });
-    }
-
-    private void requestPermission() {
-        //因为项目的最低版本API是23，所以肯定需要动态请求危险权限，只需要判断权限是否拥有即可
-        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                || checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            //开始权限请求
-            requestPermissionIntent.launch(permissions);
-            return;
+    /**
+     * 接收定位信息
+     *
+     * @param bdLocation 定位数据
+     */
+    @Override
+    public void onReceiveLocation(BDLocation bdLocation) {
+        String city = bdLocation.getCity();             //获取城市
+        String district = bdLocation.getDistrict();     //获取区县
+        if (viewModel != null && district != null) {
+            //显示当前定位城市
+            binding.tvCity.setText(district);
+            //搜索城市
+            viewModel.searchCity(district);
+        } else {
+            Log.e("TAG", "district: " + district);
         }
-        //开始定位
-        startLocation();
     }
-    
+
 }
