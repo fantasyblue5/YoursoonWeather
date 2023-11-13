@@ -2,15 +2,27 @@ package com.yoursoonweather.android;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.content.ContextCompat;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
+
 
 import com.baidu.location.BDLocation;
 import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
+import com.yoursoonweather.android.adapter.DailyAdapter;
+import com.yoursoonweather.android.adapter.LifestyleAdapter;
+import com.yoursoonweather.android.bean.DailyResponse;
+import com.yoursoonweather.android.bean.LifestyleResponse;
 import com.yoursoonweather.android.bean.NowResponse;
 import com.yoursoonweather.android.bean.SearchCityResponse;
 import com.yoursoonweather.android.databinding.ActivityMainBinding;
@@ -19,6 +31,7 @@ import com.yoursoonweather.android.location.MyLocationListener;
 import com.yoursoonweather.android.viewmodel.MainViewModel;
 import com.yoursoonweather.library.base.NetworkActivity;
 
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -58,7 +71,10 @@ public class MainActivity extends NetworkActivity<ActivityMainBinding> implement
         setFullScreenImmersion();
         initLocation();
         requestPermission();
+        initView();
+
         viewModel = new ViewModelProvider(this).get(MainViewModel.class);
+
     }
 
     /**
@@ -76,6 +92,7 @@ public class MainActivity extends NetworkActivity<ActivityMainBinding> implement
                     if (id != null) {
                         //通过城市ID查询城市实时天气
                         viewModel.nowWeather(id);
+                        viewModel.dailyWeather(id);
                     }
                 }
             });
@@ -88,9 +105,34 @@ public class MainActivity extends NetworkActivity<ActivityMainBinding> implement
                     binding.tvUpdateTime.setText("最近更新时间：" + nowResponse.getUpdateTime());
                 }
             });
+            //天气预报返回
+            viewModel.dailyResponseMutableLiveData.observe(this, dailyResponse -> {
+                List<DailyResponse.DailyBean> daily = dailyResponse.getDaily();
+                if (daily != null) {
+                    if (dailyBeanList.size() > 0) {
+                        dailyBeanList.clear();
+                    }
+                    dailyBeanList.addAll(daily);
+                    dailyAdapter.notifyDataSetChanged();
+                }
+            });
+
             //错误信息返回
             viewModel.failed.observe(this, this::showLongMsg);
+
+            viewModel.lifestyleResponseMutableLiveData.observe(this, lifestyleResponse -> {
+                List<LifestyleResponse.DailyBean> daily = lifestyleResponse.getDaily();
+                if (daily != null) {
+                    if (lifestyleList.size() > 0) {
+                        lifestyleList.clear();
+                    }
+                    lifestyleList.addAll(daily);
+                    lifestyleAdapter.notifyDataSetChanged();
+                }
+            });
+
         }
+
     }
 
     /**
@@ -159,5 +201,43 @@ public class MainActivity extends NetworkActivity<ActivityMainBinding> implement
             Log.e("TAG", "district: " + district);
         }
     }
+
+    private final List<DailyResponse.DailyBean> dailyBeanList = new ArrayList<>();
+    private final DailyAdapter dailyAdapter = new DailyAdapter(dailyBeanList);
+
+    private void initView() {
+        setToolbarMoreIconCustom(binding.materialToolbar);
+        binding.rvDaily.setLayoutManager(new LinearLayoutManager(this));
+        binding.rvDaily.setAdapter(dailyAdapter);
+        binding.rvLifestyle.setLayoutManager(new LinearLayoutManager(this));
+        binding.rvLifestyle.setAdapter(lifestyleAdapter);
+
+    }
+
+    private final List<LifestyleResponse.DailyBean> lifestyleList = new ArrayList<>();
+    private final LifestyleAdapter lifestyleAdapter = new LifestyleAdapter(lifestyleList);
+
+    public void setToolbarMoreIconCustom(Toolbar toolbar) {
+        if (toolbar == null) return;
+        toolbar.setTitle("");
+        Drawable moreIcon = ContextCompat.getDrawable(toolbar.getContext(), R.drawable.ic_round_add_32);
+        if (moreIcon != null) toolbar.setOverflowIcon(moreIcon);
+        setToolbarMoreIconCustom(toolbar);
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == R.id.item_switching_cities) {
+            showMsg("切换城市");
+        }
+        return true;
+    }
+
 
 }

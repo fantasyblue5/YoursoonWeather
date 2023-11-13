@@ -47,4 +47,13 @@ public class SearchCityRepository {
                    }
                }));
     }
+
+    private static final class SearchCityRepositoryHolder {
+        private static final SearchCityRepository mInstance = new SearchCityRepository();
+    }
+
+    public static SearchCityRepository getInstance() {
+        return SearchCityRepositoryHolder.mInstance;
+    }
+
 }

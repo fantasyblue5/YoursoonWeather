@@ -3,7 +3,7 @@ package com.yoursoonweather.android;
 public class Constant {
 
     /**
-     * 和风天气的KEY，请使用自己的
+     * 和风天气的KEY
      */
     public final static String API_KEY = "41b348cd03f640df8959906765d9da03";
 

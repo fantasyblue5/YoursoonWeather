@@ -10,7 +10,7 @@ public class BaseApplication extends Application {
     @SuppressLint("StaticFieldLeak")
     private static BaseApplication application;
     @SuppressLint("StaticFieldLeak")
-    private static Context context;
+    public static Context context;
 
     @Override
     public void onCreate() {
@@ -19,7 +19,6 @@ public class BaseApplication extends Application {
         activityManager = new ActivityManager();
         context = getApplicationContext();
         application = this;
-
     }
 
     public static ActivityManager getActivityManager() {
