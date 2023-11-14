@@ -1,4 +1,4 @@
-package com.yoursoonweather.android;
+package com.yoursoonweather.android.ui;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -19,15 +19,18 @@ import android.view.MenuItem;
 import com.baidu.location.BDLocation;
 import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
-import com.yoursoonweather.android.adapter.DailyAdapter;
-import com.yoursoonweather.android.adapter.LifestyleAdapter;
-import com.yoursoonweather.android.bean.DailyResponse;
-import com.yoursoonweather.android.bean.LifestyleResponse;
-import com.yoursoonweather.android.bean.NowResponse;
-import com.yoursoonweather.android.bean.SearchCityResponse;
+import com.yoursoonweather.android.R;
+import com.yoursoonweather.android.ui.adapter.DailyAdapter;
+import com.yoursoonweather.android.ui.adapter.LifestyleAdapter;
+import com.yoursoonweather.android.db.bean.DailyResponse;
+import com.yoursoonweather.android.db.bean.LifestyleResponse;
+import com.yoursoonweather.android.db.bean.NowResponse;
+import com.yoursoonweather.android.db.bean.SearchCityResponse;
 import com.yoursoonweather.android.databinding.ActivityMainBinding;
 import com.yoursoonweather.android.location.LocationCallback;
 import com.yoursoonweather.android.location.MyLocationListener;
+import com.yoursoonweather.android.utils.CityDialog;
+import com.yoursoonweather.android.utils.EasyDate;
 import com.yoursoonweather.android.viewmodel.MainViewModel;
 import com.yoursoonweather.library.base.NetworkActivity;
 
@@ -35,7 +38,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class MainActivity extends NetworkActivity<ActivityMainBinding> implements LocationCallback {
+public class MainActivity extends NetworkActivity<ActivityMainBinding> implements LocationCallback, CityDialog.SelectedCityCallback {
 
     //权限数组
     private final String[] permissions = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.WRITE_EXTERNAL_STORAGE};
@@ -46,6 +49,15 @@ public class MainActivity extends NetworkActivity<ActivityMainBinding> implement
     private final MyLocationListener myListener = new MyLocationListener();
 
     private MainViewModel viewModel;
+
+    //天气预报数据和适配器
+    private final List<DailyResponse.DailyBean> dailyBeanList = new ArrayList<>();
+    private final DailyAdapter dailyAdapter = new DailyAdapter(dailyBeanList);
+    //生活指数数据和适配器
+    private final List<LifestyleResponse.DailyBean> lifestyleList = new ArrayList<>();
+    private final LifestyleAdapter lifestyleAdapter = new LifestyleAdapter(lifestyleList);
+    //城市弹窗
+    private CityDialog cityDialog;
 
     /**
      * 注册意图
@@ -68,13 +80,60 @@ public class MainActivity extends NetworkActivity<ActivityMainBinding> implement
      */
     @Override
     protected void onCreate() {
+        //沉浸式
         setFullScreenImmersion();
+        //初始化定位
         initLocation();
+        //请求权限
         requestPermission();
+        //初始化视图
         initView();
-
+        //绑定ViewModel
         viewModel = new ViewModelProvider(this).get(MainViewModel.class);
+        //获取城市数据
+        viewModel.getAllCity();
+    }
 
+    /**
+     * 初始化页面视图
+     */
+    private void initView() {
+        setToolbarMoreIconCustom(binding.materialToolbar);
+        binding.rvDaily.setLayoutManager(new LinearLayoutManager(this));
+        binding.rvDaily.setAdapter(dailyAdapter);
+        binding.rvLifestyle.setLayoutManager(new LinearLayoutManager(this));
+        binding.rvLifestyle.setAdapter(lifestyleAdapter);
+    }
+
+    /**
+     * 创建菜单
+     */
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    /**
+     * 菜单选项选中
+     */
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == R.id.item_switching_cities) {
+            if (cityDialog != null) cityDialog.show();
+        }
+        return true;
+    }
+
+    /**
+     * 自定义Toolbar的图标
+     */
+    public void setToolbarMoreIconCustom(Toolbar toolbar) {
+        if (toolbar == null) return;
+        toolbar.setTitle("");
+        Drawable moreIcon = ContextCompat.getDrawable(toolbar.getContext(), R.drawable.ic_round_add_32);
+        if (moreIcon != null) toolbar.setOverflowIcon(moreIcon);
+        setSupportActionBar(toolbar);
     }
 
     /**
@@ -92,7 +151,10 @@ public class MainActivity extends NetworkActivity<ActivityMainBinding> implement
                     if (id != null) {
                         //通过城市ID查询城市实时天气
                         viewModel.nowWeather(id);
+                        //通过城市ID查询天气预报
                         viewModel.dailyWeather(id);
+                        //通过城市ID查询生活指数
+                        viewModel.lifestyle(id);
                     }
                 }
             });
@@ -102,7 +164,7 @@ public class MainActivity extends NetworkActivity<ActivityMainBinding> implement
                 if (now != null) {
                     binding.tvInfo.setText(now.getText());
                     binding.tvTemp.setText(now.getTemp());
-                    binding.tvUpdateTime.setText("最近更新时间：" + nowResponse.getUpdateTime());
+                    binding.tvUpdateTime.setText("最近更新时间：" + EasyDate.greenwichupToSimpleTime(nowResponse.getUpdateTime()));
                 }
             });
             //天气预报返回
@@ -116,10 +178,7 @@ public class MainActivity extends NetworkActivity<ActivityMainBinding> implement
                     dailyAdapter.notifyDataSetChanged();
                 }
             });
-
-            //错误信息返回
-            viewModel.failed.observe(this, this::showLongMsg);
-
+            //生活指数返回
             viewModel.lifestyleResponseMutableLiveData.observe(this, lifestyleResponse -> {
                 List<LifestyleResponse.DailyBean> daily = lifestyleResponse.getDaily();
                 if (daily != null) {
@@ -130,9 +189,15 @@ public class MainActivity extends NetworkActivity<ActivityMainBinding> implement
                     lifestyleAdapter.notifyDataSetChanged();
                 }
             });
-
+            //获取本地城市数据返回
+            viewModel.cityMutableLiveData.observe(this, provinces -> {
+                //城市弹窗初始化
+                cityDialog = CityDialog.getInstance(MainActivity.this, provinces);
+                cityDialog.setSelectedCityCallback(this);
+            });
+            //错误信息返回
+            viewModel.failed.observe(this, this::showLongMsg);
         }
-
     }
 
     /**
@@ -149,7 +214,6 @@ public class MainActivity extends NetworkActivity<ActivityMainBinding> implement
         //开始定位
         startLocation();
     }
-
 
     /**
      * 初始化定位
@@ -202,42 +266,16 @@ public class MainActivity extends NetworkActivity<ActivityMainBinding> implement
         }
     }
 
-    private final List<DailyResponse.DailyBean> dailyBeanList = new ArrayList<>();
-    private final DailyAdapter dailyAdapter = new DailyAdapter(dailyBeanList);
-
-    private void initView() {
-        setToolbarMoreIconCustom(binding.materialToolbar);
-        binding.rvDaily.setLayoutManager(new LinearLayoutManager(this));
-        binding.rvDaily.setAdapter(dailyAdapter);
-        binding.rvLifestyle.setLayoutManager(new LinearLayoutManager(this));
-        binding.rvLifestyle.setAdapter(lifestyleAdapter);
-
-    }
-
-    private final List<LifestyleResponse.DailyBean> lifestyleList = new ArrayList<>();
-    private final LifestyleAdapter lifestyleAdapter = new LifestyleAdapter(lifestyleList);
-
-    public void setToolbarMoreIconCustom(Toolbar toolbar) {
-        if (toolbar == null) return;
-        toolbar.setTitle("");
-        Drawable moreIcon = ContextCompat.getDrawable(toolbar.getContext(), R.drawable.ic_round_add_32);
-        if (moreIcon != null) toolbar.setOverflowIcon(moreIcon);
-        setToolbarMoreIconCustom(toolbar);
-    }
-
+    /**
+     * 选中城市
+     *
+     * @param cityName 城市名称
+     */
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
+    public void selectedCity(String cityName) {
+        //搜索城市
+        viewModel.searchCity(cityName);
+        //显示所选城市
+        binding.tvCity.setText(cityName);
     }
-
-    @Override
-    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        if (item.getItemId() == R.id.item_switching_cities) {
-            showMsg("切换城市");
-        }
-        return true;
-    }
-
-
 }

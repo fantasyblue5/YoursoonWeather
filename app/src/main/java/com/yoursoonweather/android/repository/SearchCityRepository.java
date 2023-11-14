@@ -7,7 +7,7 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.yoursoonweather.android.Constant;
 import com.yoursoonweather.android.api.ApiService;
-import com.yoursoonweather.android.bean.SearchCityResponse;
+import com.yoursoonweather.android.db.bean.SearchCityResponse;
 
 import com.yoursoonweather.library.network.ApiType;
 import com.yoursoonweather.library.network.NetworkApi;

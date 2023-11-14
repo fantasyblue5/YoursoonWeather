@@ -1,7 +1,5 @@
 package com.yoursoonweather.android.repository;
 
-import static android.content.ContentValues.TAG;
-
 import android.annotation.SuppressLint;
 import android.util.Log;
 
@@ -9,9 +7,9 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.yoursoonweather.android.Constant;
 import com.yoursoonweather.android.api.ApiService;
-import com.yoursoonweather.android.bean.DailyResponse;
-import com.yoursoonweather.android.bean.LifestyleResponse;
-import com.yoursoonweather.android.bean.NowResponse;
+import com.yoursoonweather.android.db.bean.DailyResponse;
+import com.yoursoonweather.android.db.bean.LifestyleResponse;
+import com.yoursoonweather.android.db.bean.NowResponse;
 import com.yoursoonweather.library.network.ApiType;
 import com.yoursoonweather.library.network.NetworkApi;
 import com.yoursoonweather.library.network.observer.BaseObserver;

@@ -1,4 +1,4 @@
-package com.yoursoonweather.android.adapter;
+package com.yoursoonweather.android.ui.adapter;
 
 import android.annotation.SuppressLint;
 import android.view.LayoutInflater;
@@ -7,7 +7,7 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.yoursoonweather.android.bean.DailyResponse;
+import com.yoursoonweather.android.db.bean.DailyResponse;
 import com.yoursoonweather.android.databinding.ItemDailyRvBinding;
 import com.yoursoonweather.android.utils.EasyDate;
 import com.yoursoonweather.android.utils.WeatherUtil;

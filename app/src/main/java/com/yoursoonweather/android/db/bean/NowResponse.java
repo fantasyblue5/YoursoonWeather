@@ -1,4 +1,4 @@
-package com.yoursoonweather.android.bean;
+package com.yoursoonweather.android.db.bean;
 
 import java.util.List;
 

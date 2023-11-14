@@ -2,10 +2,10 @@ package com.yoursoonweather.android.api;
 
 import static com.yoursoonweather.android.Constant.API_KEY;
 
-import com.yoursoonweather.android.bean.DailyResponse;
-import com.yoursoonweather.android.bean.LifestyleResponse;
-import com.yoursoonweather.android.bean.NowResponse;
-import com.yoursoonweather.android.bean.SearchCityResponse;
+import com.yoursoonweather.android.db.bean.DailyResponse;
+import com.yoursoonweather.android.db.bean.LifestyleResponse;
+import com.yoursoonweather.android.db.bean.NowResponse;
+import com.yoursoonweather.android.db.bean.SearchCityResponse;
 
 import io.reactivex.Observable;
 import retrofit2.http.GET;

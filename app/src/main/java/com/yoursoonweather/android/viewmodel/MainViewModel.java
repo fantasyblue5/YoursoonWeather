@@ -2,13 +2,17 @@ package com.yoursoonweather.android.viewmodel;
 
 import androidx.lifecycle.MutableLiveData;
 
-import com.yoursoonweather.android.bean.DailyResponse;
-import com.yoursoonweather.android.bean.LifestyleResponse;
-import com.yoursoonweather.android.bean.NowResponse;
-import com.yoursoonweather.android.bean.SearchCityResponse;
+import com.yoursoonweather.android.db.bean.DailyResponse;
+import com.yoursoonweather.android.db.bean.LifestyleResponse;
+import com.yoursoonweather.android.db.bean.NowResponse;
+import com.yoursoonweather.android.db.bean.Province;
+import com.yoursoonweather.android.db.bean.SearchCityResponse;
+import com.yoursoonweather.android.repository.CityRepository;
 import com.yoursoonweather.android.repository.SearchCityRepository;
 import com.yoursoonweather.android.repository.WeatherRepository;
 import com.yoursoonweather.library.base.BaseViewModel;
+
+import java.util.List;
 
 public class MainViewModel extends BaseViewModel {
 
@@ -19,6 +23,7 @@ public class MainViewModel extends BaseViewModel {
     public MutableLiveData<DailyResponse> dailyResponseMutableLiveData = new MutableLiveData<>();
 
     public MutableLiveData<LifestyleResponse> lifestyleResponseMutableLiveData = new MutableLiveData<>();
+    public MutableLiveData<List<Province>> cityMutableLiveData = new MutableLiveData<>();
 
     /**
      * 搜索成功
@@ -42,5 +47,8 @@ public class MainViewModel extends BaseViewModel {
         WeatherRepository.getInstance().lifestyle(lifestyleResponseMutableLiveData, failed, cityId);
     }
 
+    public void getAllCity() {
+        CityRepository.getInstance().getCityData(cityMutableLiveData);
+    }
 }
 
